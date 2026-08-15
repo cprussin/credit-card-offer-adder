@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "@offers/error-message": "workspace:*"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./add-offers": "./src/add-offers.ts",
+    "./issuer": "./src/issuer.ts",
+    "./offer-surface": "./src/offer-surface.ts",
+    "./pending-offer": "./src/pending-offer.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/offer",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

@@ -1,0 +1,37 @@
+[Unit]
+Description=Add every available card offer to the configured Amex and Chase accounts
+Documentation=https://github.com/cprussin/credit-card-offer-adder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/src/credit-card-offer-adder
+
+# The vault session and nothing else. Provision it once with
+#
+#   install -m 600 /dev/null %h/.config/offer-adder/env
+#   printf 'BW_SESSION=%%s\n' "$(bw unlock --raw)" > %h/.config/offer-adder/env
+#
+# so no master password ever sits on disk. Vaultwarden sessions do not expire
+# on their own; re-run that after a master password change. Set BW_PASSWORD
+# here instead if you would rather the service be able to unlock by itself.
+EnvironmentFile=%h/.config/offer-adder/env
+Environment=OFFERS_CONFIG=%h/.config/offer-adder/offers.config.json
+
+# Xvfb rather than headless Chromium: a headless browser is the easiest thing
+# for a bank to fingerprint, and being fingerprinted means a challenge on every
+# run. `"headless": false` in the config plus a virtual display is what keeps
+# the browser profile trusted, which is what keeps the run unattended.
+ExecStart=/usr/bin/xvfb-run --auto-servernum --server-args=-screen\x200\x201440x900x24 \
+    %h/.bun/bin/bun apps/offer-adder/src/main.ts
+
+# One run is a few minutes. If it is still going after this, something is hung
+# on a bank page and the next firing is a better bet than waiting.
+TimeoutStartSec=30min
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

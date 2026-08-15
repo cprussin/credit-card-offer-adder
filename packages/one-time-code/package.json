@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "@offers/error-message": "workspace:*",
+    "@offers/ntfy": "workspace:*"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./chain-code-sources": "./src/chain-code-sources.ts",
+    "./code-source": "./src/code-source.ts",
+    "./ntfy-code-source": "./src/ntfy-code-source.ts",
+    "./prompt-code-source": "./src/prompt-code-source.ts",
+    "./request-code": "./src/request-code.ts",
+    "./select-code": "./src/select-code.ts",
+    "./totp-code-source": "./src/totp-code-source.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/one-time-code",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "@offers/offer": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./account": "./src/account.ts",
+    "./code-source-kind": "./src/code-source-kind.ts",
+    "./config-schema": "./src/config-schema.ts",
+    "./expand-home": "./src/expand-home.ts",
+    "./load-config": "./src/load-config.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/config",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

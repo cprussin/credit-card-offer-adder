@@ -1,0 +1,22 @@
+node_modules/
+.direnv/
+.claude/
+.turbo/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+result
+
+# Runtime state: browser profiles (contain live bank session cookies) and
+# failure artifacts (screenshots / HTML dumps from a bank page). Neither may
+# ever be committed.
+.profiles/
+.artifacts/
+
+# The local account configuration names real vault items and mailboxes.
+offers.config.json
+
+# Generated at build time via IFD (see nix/offer-adder.nix); never committed.
+bun.generated.nix

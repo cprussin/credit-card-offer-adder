@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "@offers/config": "workspace:*",
+    "@offers/error-message": "workspace:*",
+    "playwright": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./artifact-path": "./src/artifact-path.ts",
+    "./browser-session": "./src/browser-session.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/browser-session",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

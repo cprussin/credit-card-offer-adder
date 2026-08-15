@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./ntfy-client": "./src/ntfy-client.ts",
+    "./ntfy-message": "./src/ntfy-message.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/ntfy",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

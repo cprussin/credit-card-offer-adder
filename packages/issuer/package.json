@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "@offers/offer": "workspace:*",
+    "@offers/vault": "workspace:*",
+    "playwright": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./issuer-adapter": "./src/issuer-adapter.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/issuer",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}
