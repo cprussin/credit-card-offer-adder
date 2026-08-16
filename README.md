@@ -18,11 +18,13 @@ nobody:
    challenged. After the first supervised run, most runs never see a
    challenge at all.
 2. **A ladder of one-time-code sources**, automatic ones first: an
-   authenticator-app TOTP straight out of the vault, then a mailbox polled
-   over IMAP, then a push notification you can answer with one tap, then —
-   only for attended runs — a terminal prompt.
-3. **Credentials from Vaultwarden**, via the Bitwarden CLI. Nothing is
-   configured with a password; the config file only names vault items.
+   authenticator-app TOTP computed on the spot, then a mailbox polled over
+   IMAP, then a push notification you can answer with one tap, then — only for
+   attended runs — a terminal prompt.
+3. **A sealed credentials file, and nothing else.** The service holds the four
+   bank logins and their TOTP secrets — not a password-manager session, not a
+   master password. systemd unseals the file from the TPM at start into a
+   tmpfs only this unit can read, and drops it when the run ends.
 
 If every automatic source comes up dry, you get a push notification naming
 the account and asking for the digits. If you ignore it, that one account is
@@ -32,8 +34,8 @@ skipped and the other three still finish.
 
 ### 1. Prerequisites
 
-On Nix, everything is in the flake — the app, `bw`, `xvfb`, and a Chromium
-matched to the pinned Playwright:
+On Nix, everything is in the flake — the app, `xvfb`, and a Chromium matched to
+the pinned Playwright:
 
 ```sh
 nix develop                                    # dev shell
@@ -47,27 +49,25 @@ bun install
 bunx playwright install chromium     # or your distro's chromium
 ```
 
-and you need the Bitwarden CLI (`bw`) and, on a server, `xvfb`.
+and, on a server, `xvfb`.
 
-### 2. Point `bw` at your Vaultwarden and log in once
+### 2. Write the credentials file
 
-```sh
-bw config server https://vault.example.com
-bw login                       # or: bw login --apikey, with BW_CLIENTID/BW_CLIENTSECRET
-```
-
-The service authenticates with an unlocked session rather than a master
-password, so provision one and keep it out of the repo:
+Two files, on purpose: `offers.config.json` holds no secrets and can go
+anywhere, and `offers.credentials.json` holds nothing but secrets.
 
 ```sh
 mkdir -p ~/.config/offer-adder
-install -m 600 /dev/null ~/.config/offer-adder/env
-printf 'BW_SESSION=%s\n' "$(bw unlock --raw)" > ~/.config/offer-adder/env
+install -m 600 /dev/null ~/.config/offer-adder/offers.credentials.json
+$EDITOR ~/.config/offer-adder/offers.credentials.json
 ```
 
-Set `BW_PASSWORD` there instead if you would rather the service be able to
-unlock itself; it is one fewer thing to redo, at the cost of a master password
-on disk.
+See [`offers.credentials.example.json`](./offers.credentials.example.json) for
+the shape: a `username`/`password` per account id, plus an optional
+`totpSecret`, `imap` login, and `ntfyToken`. The app refuses to read the file
+if it is readable by anyone but its owner.
+
+Leave it in the clear for now — step 6 seals it once you know it works.
 
 ### 3. Make the codes readable by a machine
 
@@ -75,9 +75,9 @@ This is the step that decides whether the thing actually runs unattended.
 Pick per account, best first:
 
 - **Authenticator app (Chase).** If the account can be enrolled in
-  authenticator-app verification, do that and store the TOTP secret on the
-  same Bitwarden item as the password. Nothing else is needed — put `"totp"`
-  first in that account's `codeSources`.
+  authenticator-app verification, do that and put the `otpauth://` URI behind
+  its QR code into that account's `totpSecret`. Nothing else is needed — put
+  `"totp"` first in that account's `codeSources`.
 - **Email delivery.** Set the bank to deliver one-time codes to an address you
   can reach over IMAP, and give **each account its own address** (plus
   addressing like `you+connor-amex@example.com` is enough). Sharing one
@@ -89,8 +89,8 @@ Pick per account, best first:
 - **ntfy.** The fallback: the run pushes "Connor · Amex needs a code" and waits
   for you to publish the digits back to the reply topic from the ntfy app.
 
-Store each mailbox's IMAP username and password as its own Bitwarden login
-item, and name that item in the account's `imap.vaultItem`.
+Put each mailbox's IMAP login in that account's `imap` block in the
+credentials file; the host, port and folder go in the config file.
 
 ### 4. Write the config
 
@@ -99,7 +99,7 @@ cp offers.config.example.json ~/.config/offer-adder/offers.config.json
 $EDITOR ~/.config/offer-adder/offers.config.json
 ```
 
-The file names vault items, mailboxes, and topics — never a secret. See
+The file names accounts, mailboxes, and topics — never a secret. See
 [`offers.config.example.json`](./offers.config.example.json) for all four
 accounts filled in, and
 [`packages/config/README.md`](./packages/config/README.md) for every field.
@@ -112,6 +112,7 @@ whether either site has moved a button since this was written.
 
 ```sh
 OFFERS_CONFIG=~/.config/offer-adder/offers.config.json \
+OFFERS_CREDENTIALS=~/.config/offer-adder/offers.credentials.json \
   bun apps/offer-adder/src/main.ts
 ```
 
@@ -121,7 +122,24 @@ under `artifactDir`. Each adapter keeps every selector it depends on in one
 object at the top of its file, so fixing a reskin is a one-line edit — see
 [`packages/issuer-amex`](./packages/issuer-amex/README.md).
 
-### 6. Schedule it
+### 6. Seal the credentials and schedule it
+
+Now that the run works, get the plaintext off the disk:
+
+```sh
+systemd-creds encrypt --user --with-key=tpm2+host --name=offers-credentials \
+  ~/.config/offer-adder/offers.credentials.json \
+  ~/.config/offer-adder/credentials.cred
+shred -u ~/.config/offer-adder/offers.credentials.json
+```
+
+systemd decrypts that at unit start into `$CREDENTIALS_DIRECTORY` — a tmpfs
+private to the service, mode 0400 — and unmounts it when the run ends, so the
+secrets never sit on disk in the clear and never appear in `systemctl show`.
+Without a TPM, drop `--with-key=tpm2+host` for host-key-only sealing; without
+sealing at all, keep the mode-600 plaintext and set `OFFERS_CREDENTIALS` in the
+unit instead. [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) covers the agenix
+and sops-nix alternatives.
 
 ```sh
 mkdir -p ~/.config/systemd/user
@@ -148,7 +166,7 @@ inputs.offer-adder.url = "github:cprussin/credit-card-offer-adder";
 imports = [inputs.offer-adder.nixosModules.default];
 services.offer-adder = {
   enable = true;
-  environmentFile = config.age.secrets.offer-adder-bw-session.path;
+  credentialFile = "/var/lib/secrets/offer-adder/credentials.cred";
   settings = { /* the same shape as offers.config.json */ };
 };
 ```
@@ -159,10 +177,11 @@ scheduled run fails.
 
 ## What a run does
 
-1. Loads the config and unlocks the vault once.
+1. Loads the config and the credentials.
 2. For each account, in order, one at a time:
+   - builds its code ladder, which fails the account before a browser is ever
+     launched if the credentials cannot supply a rung it asked for,
    - opens that account's persistent browser profile,
-   - pulls its credentials from the vault,
    - signs in, answering a challenge from the code ladder if there is one,
    - opens the offers page and adds every tile that still has a button,
      paging the grid until it runs out,
@@ -183,7 +202,8 @@ always means something worth looking at.
 | [`packages/offer`](./packages/offer/README.md) | The domain: `PendingOffer`, the `OfferSurface` port, and `addOffers`. |
 | [`packages/offer-run`](./packages/offer-run/README.md) | `runAccount` / `runAccounts` and the run report. |
 | [`packages/config`](./packages/config/README.md) | `offers.config.json` schema and parsing. |
-| [`packages/vault`](./packages/vault/README.md) | Bitwarden CLI as a credential source. |
+| [`packages/credentials`](./packages/credentials/README.md) | The credentials document: where it comes from, and its schema. |
+| [`packages/totp`](./packages/totp/README.md) | RFC 6238 codes from a stored secret. |
 | [`packages/one-time-code`](./packages/one-time-code/README.md) | The `CodeSource` port, the chain, and the totp/ntfy/prompt sources. |
 | [`packages/one-time-code-imap`](./packages/one-time-code-imap/README.md) | Reading a code out of a mailbox. |
 | [`packages/ntfy`](./packages/ntfy/README.md) | ntfy publish and subscribe. |
@@ -214,9 +234,12 @@ particular covers the rules for anything that touches a bank page or a secret.
 
 ## Security notes
 
-- No secret is ever in the config file, in argv, or in a log line. The master
-  password reaches `bw` through its environment; failure messages name the
-  subcommand but not its operands.
+- Secrets live in exactly one file, which is separate from the config, sealed
+  at rest, and read from a per-unit tmpfs. No secret is ever in the config
+  file, in argv, in an environment variable, or in a log line.
+- The blast radius is four bank logins and one mailbox — not a password
+  manager. A compromise of this host cannot reach anything the service was
+  never given.
 - Failure artifacts are captured only after a failure and only from the offers
   page, never from a login form. They land in a git-ignored directory.
 - Browser profiles hold live bank session cookies. `profileDir` is git-ignored

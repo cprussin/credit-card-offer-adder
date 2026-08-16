@@ -1,24 +1,21 @@
 {
-  "dependencies": {
-    "@offers/credentials": "workspace:*",
-    "@offers/offer": "workspace:*",
-    "playwright": "catalog:"
-  },
   "devDependencies": {
     "@cprussin/tsconfig": "catalog:",
     "@types/bun": "catalog:",
     "typescript": "catalog:"
   },
   "exports": {
-    "./issuer-adapter": "./src/issuer-adapter.ts"
+    "./generate-totp": "./src/generate-totp.ts",
+    "./parse-otpauth": "./src/parse-otpauth.ts"
   },
   "files": [
     "src/**/*"
   ],
-  "name": "@offers/issuer",
+  "name": "@offers/totp",
   "private": true,
   "scripts": {
-    "test:types": "tsc --noEmit"
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
   },
   "type": "module",
   "version": "0.0.0"

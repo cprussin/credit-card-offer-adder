@@ -42,7 +42,6 @@
             pkgs.bun
             pkgs.bun2nix
             pkgs.biome
-            pkgs.bitwarden-cli
             pkgs.playwright-driver.browsers
             pkgs.xvfb-run
           ];

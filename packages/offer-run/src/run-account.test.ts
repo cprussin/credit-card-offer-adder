@@ -14,7 +14,6 @@ const account = {
   issuer: 0,
   label: "Connor · Amex",
   senderHints: ["americanexpress"],
-  vaultItem: "amex-connor",
 };
 
 const offer = (id: string): PendingOffer => ({ id, title: `offer ${id}` });

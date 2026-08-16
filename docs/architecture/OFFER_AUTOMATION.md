@@ -20,14 +20,16 @@ Two things make this hard to automate rather than merely tedious:
 ## Design
 
 A scheduled process walks the accounts one at a time. Each account gets its
-own persistent browser profile, its credentials from Vaultwarden, and a
-ladder of one-time-code sources ordered so the automatic ones are tried first.
+own persistent browser profile, its own entry in the credentials document, and
+a ladder of one-time-code sources ordered so the automatic ones are tried
+first.
 
 ```
-systemd timer
-  └─ apps/offer-adder ────────────────────────── wiring only
-       ├─ @offers/config          offers.config.json → Account[]
-       ├─ @offers/vault           bw CLI → passwords, TOTPs
+systemd timer  ── LoadCredentialEncrypted ──┐
+  └─ apps/offer-adder ────────────────────── wiring only
+       ├─ @offers/config          offers.config.json → Account[]   (no secrets)
+       ├─ @offers/credentials     $CREDENTIALS_DIRECTORY → logins  (only secrets)
+       ├─ @offers/totp            stored secret → RFC 6238 code
        ├─ @offers/offer-run       runAccounts → runAccount → addOffers
        │    ├─ @offers/browser-session   per-account persistent Chromium profile
        │    ├─ @offers/issuer-amex  ─┐
@@ -36,6 +38,26 @@ systemd timer
        ├─ @offers/one-time-code   totp → imap → ntfy → prompt
        └─ @offers/notify          run report → ntfy push + journal
 ```
+
+### Two inputs, split by whether they are secret
+
+`offers.config.json` holds account ids, labels, issuers, ladder order, and IMAP
+hosts — nothing that needs protecting, so it can be rendered into the
+world-readable Nix store and reviewed in a diff. The credentials document holds
+the passwords, TOTP secrets, mailbox logins, and ntfy token, keyed by account
+id, and nothing else.
+
+That split is what makes the deployment defensible. The secret half is one
+small file with one shape, so it can be sealed to the host's TPM and handed to
+the service through `LoadCredentialEncrypted` — decrypted at unit start into a
+per-unit tmpfs, mode 0400, gone when the run exits, never in the environment.
+The service's entire reach is four bank logins and one mailbox.
+
+The earlier design fetched credentials from Vaultwarden through the Bitwarden
+CLI. It was rejected because it inverted the blast radius: to avoid keeping four
+passwords on disk, it kept either a long-lived vault session or the master
+password itself, either of which is the whole vault. Keeping only what the
+service actually uses is strictly less to lose.
 
 ### Staying logged in is the whole trick
 
@@ -52,7 +74,7 @@ Configured per account, tried in order, first code wins:
 
 | Source | Human cost | When it applies |
 |---|---|---|
-| `totp` | none | Chase enrolled in an authenticator app; secret lives in the vault item |
+| `totp` | none | Chase enrolled in an authenticator app; `@offers/totp` computes the code from the account's stored secret |
 | `imap` | none | The bank delivers to a mailbox we can poll — email delivery, or an SMS forwarded to email |
 | `ntfy` | one tap | Bank insists on SMS: push a request, someone publishes the digits back |
 | `prompt` | full attention | Attended runs only; fails immediately on a server |
@@ -73,8 +95,8 @@ plain object:
 | `OfferSurface` | `@offers/offer/offer-surface` | the add loop: paging, dedup, per-offer failure isolation, pass budget |
 | `AccountSession` | `@offers/offer-run/account-session` | error classification, session closing, timing |
 | `CodeSource` | `@offers/one-time-code/code-source` | ladder order, fall-through, exhaustion reporting |
-| `Vault` | `@offers/vault/vault` | secrets never reach argv; one unlock per run |
-| `RunCommand` | `@offers/vault/run-command` | `bw` invocation shape |
+| `Mailbox` | `@offers/one-time-code-imap/imap-mailbox` | which delivered message is this login's code |
+| `SecretFileDeps` | `@offers/credentials/secret-file` | refusing a credentials file readable beyond its owner |
 
 ### Failure is a value, not an exception
 
@@ -101,15 +123,25 @@ things worth looking at.
 - **Xvfb over headless.** Headless Chromium is the loudest bot signal
   available, and being fingerprinted means being challenged, which is the one
   thing this design cannot absorb.
-- **Bitwarden CLI over the Bitwarden API.** `bw` already speaks to Vaultwarden,
-  already handles the unlock, and generates TOTPs. The alternative is
-  reimplementing the vault crypto.
+- **A dedicated credentials file over a password manager.** See above: the
+  smallest secret this service can hold is the four logins it uses, and a vault
+  session is strictly larger.
+- **systemd credentials over a secret store.** Vault, OpenBao and the
+  Kubernetes external-secrets machinery solve rotation and multi-tenant access
+  across a fleet. Here there is one host and four credentials, and each of them
+  adds a server whose availability becomes a new reason the run fails.
+  `LoadCredentialEncrypted` needs no daemon, no agent, and no renewal.
+- **Our own TOTP over a library.** Eighty lines of RFC 6238, verified against
+  the RFC's own vectors, against a dependency that would see every TOTP secret
+  we hold. `@offers/totp` takes the clock as a parameter so the vectors can be
+  tested at all.
 
 ## Plan
 
 - [x] domain: `PendingOffer`, `OfferSurface`, `addOffers`
 - [x] `@offers/config`: schema, issuer/code-source codecs, ladder defaults
-- [x] `@offers/vault`: `bw` wrapper, item parsing, session memoization
+- [x] `@offers/credentials`: schema, permission-checked read, systemd credential path
+- [x] `@offers/totp`: RFC 6238 codes, `otpauth://` parsing
 - [x] `@offers/one-time-code`: port, chain, `selectCode`, totp/ntfy/prompt sources
 - [x] `@offers/one-time-code-imap`: mailbox polling
 - [x] `@offers/ntfy`: publish + subscribe
@@ -131,8 +163,10 @@ things worth looking at.
   given account only ever gets SMS, the fix is an SMS-to-email forwarding rule
   on the phone, which puts it back on the `imap` rung. Recommendation: confirm
   during the first supervised run before adding any per-account special-casing.
-- **How stale can a Vaultwarden session get?** `bw unlock` sessions do not
-  expire on their own, but a master password change invalidates them and the
-  service would start failing every run. Recommendation: leave `BW_PASSWORD`
-  out of the unit and accept a manual re-provision, since a password change is
-  a once-a-year event and the alternative is a master password on disk.
+- **What happens to a TPM-sealed credential when the host changes?** A firmware
+  update or a disk move can change the PCRs `tpm2+host` binds to, and the unit
+  then fails to start with a decryption error rather than a bank error.
+  Recommendation: keep the plaintext document in your own password manager —
+  where it is one item among many rather than the service's standing
+  authority — and re-seal after any firmware change. Re-sealing is one command;
+  losing the document is four password resets.

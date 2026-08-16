@@ -8,8 +8,6 @@ const ntfySchema = z.object({
   /** Topic a person publishes a code back to. */
   replyTopic: z.string().min(1),
   server: z.url().default("https://ntfy.sh"),
-  /** Vault item holding an access token, for a protected topic. */
-  tokenVaultItem: z.string().optional(),
 });
 
 const configSchema = z
