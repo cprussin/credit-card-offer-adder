@@ -14,7 +14,6 @@ const account = (id: string, issuer = Issuer.Amex) => ({
   issuer,
   label: `label ${id}`,
   senderHints: ["hint"],
-  vaultItem: `vault ${id}`,
 });
 
 const emptyReport: AccountReport = { added: [], durationMs: 0, failed: [] };

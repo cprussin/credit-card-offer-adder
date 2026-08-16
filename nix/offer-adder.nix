@@ -7,7 +7,6 @@
   stdenv,
   bun,
   bun2nix,
-  bitwarden-cli,
   playwright-driver,
   makeWrapper,
   runCommandLocal,
@@ -89,7 +88,7 @@ in
         --add-flags "$out/share/offer-adder/apps/offer-adder/src/main.ts" \
         --set PLAYWRIGHT_BROWSERS_PATH "${playwright-driver.browsers}" \
         --set PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS "true" \
-        --prefix PATH : ${lib.makeBinPath [bitwarden-cli xvfb-run]}
+        --prefix PATH : ${lib.makeBinPath [xvfb-run]}
 
       runHook postInstall
     '';

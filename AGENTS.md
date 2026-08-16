@@ -103,7 +103,7 @@ working in its area; it is context, not compliance.
 
 | Doc | Covers |
 |---|---|
-| [/docs/architecture/OFFER_AUTOMATION.md](/docs/architecture/OFFER_AUTOMATION.md) | End-to-end design: how a scheduled run turns four configured accounts into added offers — the credential path through Vaultwarden, the persistent browser profile that keeps 2FA rare, the one-time-code ladder that resolves the codes we still get asked for, the issuer adapter port, and the run report. |
+| [/docs/architecture/OFFER_AUTOMATION.md](/docs/architecture/OFFER_AUTOMATION.md) | End-to-end design: how a scheduled run turns four configured accounts into added offers — the config/credentials split and how the secret half is delivered, the persistent browser profile that keeps 2FA rare, the one-time-code ladder that resolves the codes we still get asked for, the issuer adapter port, and the run report. |
 
 ## Per-package addenda
 

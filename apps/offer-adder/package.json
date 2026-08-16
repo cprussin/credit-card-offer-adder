@@ -6,6 +6,7 @@
     "@cprussin/option-result": "catalog:",
     "@offers/browser-session": "workspace:*",
     "@offers/config": "workspace:*",
+    "@offers/credentials": "workspace:*",
     "@offers/error-message": "workspace:*",
     "@offers/issuer": "workspace:*",
     "@offers/issuer-amex": "workspace:*",
@@ -16,7 +17,7 @@
     "@offers/offer-run": "workspace:*",
     "@offers/one-time-code": "workspace:*",
     "@offers/one-time-code-imap": "workspace:*",
-    "@offers/vault": "workspace:*"
+    "@offers/totp": "workspace:*"
   },
   "devDependencies": {
     "@cprussin/tsconfig": "catalog:",

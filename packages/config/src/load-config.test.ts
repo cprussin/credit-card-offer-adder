@@ -9,7 +9,6 @@ const raw = JSON.stringify({
       issuer: "amex",
       label: "Connor · Amex",
       senderHints: ["americanexpress"],
-      vaultItem: "amex-connor",
     },
   ],
   artifactDir: "~/artifacts",
