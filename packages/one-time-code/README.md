@@ -10,7 +10,7 @@ outcome — a `Result`, not an exception — so the chain moves past it.
 
 | Source | Human cost | When it applies |
 |---|---|---|
-| [`totp`](./src/totp-code-source.ts) | none | the account is enrolled in an authenticator app and the secret is on its vault item |
+| [`totp`](./src/totp-code-source.ts) | none | the account is enrolled in an authenticator app and its `totpSecret` is in the credentials document |
 | `imap` (in [`@offers/one-time-code-imap`](../one-time-code-imap/README.md)) | none | the bank delivers to a mailbox we can poll |
 | [`ntfy`](./src/ntfy-code-source.ts) | one tap | the bank insists on SMS: push a request, someone publishes the digits back |
 | [`prompt`](./src/prompt-code-source.ts) | full attention | attended runs; fails immediately on a server |

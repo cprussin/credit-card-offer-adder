@@ -1,11 +1,11 @@
+import type { AccountCredentials } from "@offers/credentials/credentials";
 import type { Issuer } from "@offers/offer/issuer";
 import type { OfferSurface } from "@offers/offer/offer-surface";
-import type { VaultCredentials } from "@offers/vault/vault-item";
 import type { Page } from "playwright";
 
 export type SignInInput = {
   readonly page: Page;
-  readonly credentials: VaultCredentials;
+  readonly credentials: AccountCredentials;
   /**
    * Obtain a one-time code, stamping the request time itself so a delivery
    * channel can tell this challenge's code from the last one's. Throws when no

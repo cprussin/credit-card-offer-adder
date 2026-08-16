@@ -4,7 +4,9 @@ The runnable entry point. One invocation is one complete pass over every
 configured account.
 
 ```sh
-OFFERS_CONFIG=~/.config/offer-adder/offers.config.json bun src/main.ts
+OFFERS_CONFIG=~/.config/offer-adder/offers.config.json \
+OFFERS_CREDENTIALS=~/.config/offer-adder/offers.credentials.json \
+  bun src/main.ts
 ```
 
 ## What it is
@@ -20,8 +22,11 @@ where they are handed their real implementations.
 | Variable | Purpose |
 |---|---|
 | `OFFERS_CONFIG` | Path to the config file. Defaults to `offers.config.json` in the working directory. |
-| `BW_SESSION` | An already-unlocked Bitwarden session. Preferred on a server. |
-| `BW_PASSWORD` | Master password, used to unlock when there is no session. |
+| `CREDENTIALS_DIRECTORY` | Set by systemd. When it is set at all, `offers-credentials` inside it is the credentials document and `OFFERS_CREDENTIALS` is not consulted. |
+| `OFFERS_CREDENTIALS` | Path to a plaintext credentials document, for an attended run. Refused if it is readable beyond its owner. |
+
+No secret is ever read from the environment: these name files, and one of the
+two must resolve or the run fails before a browser launches.
 
 ## Exit code
 

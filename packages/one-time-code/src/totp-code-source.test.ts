@@ -10,24 +10,24 @@ const request = {
 };
 
 describe("totpCodeSource", () => {
-  it("returns the code the vault generates", async () => {
+  it("returns the generated code", async () => {
     const source = totpCodeSource(() => Promise.resolve("  123456 "));
     expect(await source.waitForCode(request)).toEqual(Ok("123456"));
   });
 
-  it("reports no code when the vault item has no TOTP secret", async () => {
+  it("reports an empty code rather than offering it to the bank", async () => {
     const source = totpCodeSource(() => Promise.resolve(""));
     expect(await source.waitForCode(request)).toEqual(
-      Err({ reason: "vault item has no TOTP secret", source: "totp" }),
+      Err({ reason: "generated an empty code", source: "totp" }),
     );
   });
 
-  it("reports the failure when the vault cannot be reached", async () => {
+  it("reports the failure when a code cannot be generated", async () => {
     const source = totpCodeSource(() =>
-      Promise.reject(new Error("vault is locked")),
+      Promise.reject(new Error("system clock is unset")),
     );
     expect(await source.waitForCode(request)).toEqual(
-      Err({ reason: "vault is locked", source: "totp" }),
+      Err({ reason: "system clock is unset", source: "totp" }),
     );
   });
 });

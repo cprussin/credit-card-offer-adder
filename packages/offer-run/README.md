@@ -36,7 +36,7 @@ const report = await runAccounts(config.accounts, {
 - [`run-accounts`](./src/run-accounts.ts) — every account, serially.
 - [`run-account`](./src/run-account.ts) — one account, end to end.
 - [`account-session`](./src/account-session.ts) — the port that hides the
-  browser, the vault, and the sign-in behind one step.
+  browser, the credentials, and the sign-in behind one step.
 - [`account-error`](./src/account-error.ts) — why an account produced nothing.
 - [`run-report`](./src/run-report.ts) — what one run produced.
 

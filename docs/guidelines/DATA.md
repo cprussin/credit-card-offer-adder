@@ -67,6 +67,6 @@ migrated; don't delete the old one the same day.
   packages, internal types. Both sides change atomically; a version field
   is overhead with no payoff.
 - **Adapters over external APIs we don't own** — the `issuer-*` packages
-  scrape live bank sites and the `vault` package shells out to the
-  Bitwarden CLI. There is no contract to version; parse defensively at the
+  scrape live bank sites and `one-time-code-imap` reads whatever a bank
+  chose to send. There is no contract to version; parse defensively at the
   boundary and fail loudly when the shape changes.

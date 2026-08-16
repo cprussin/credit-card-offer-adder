@@ -19,6 +19,7 @@
         "@cprussin/option-result": "catalog:",
         "@offers/browser-session": "workspace:*",
         "@offers/config": "workspace:*",
+        "@offers/credentials": "workspace:*",
         "@offers/error-message": "workspace:*",
         "@offers/issuer": "workspace:*",
         "@offers/issuer-amex": "workspace:*",
@@ -29,7 +30,7 @@
         "@offers/offer-run": "workspace:*",
         "@offers/one-time-code": "workspace:*",
         "@offers/one-time-code-imap": "workspace:*",
-        "@offers/vault": "workspace:*",
+        "@offers/totp": "workspace:*",
       },
       "devDependencies": {
         "@cprussin/tsconfig": "catalog:",
@@ -64,6 +65,19 @@
         "typescript": "catalog:",
       },
     },
+    "packages/credentials": {
+      "name": "@offers/credentials",
+      "version": "0.0.0",
+      "dependencies": {
+        "@offers/error-message": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@cprussin/tsconfig": "catalog:",
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
     "packages/dependency-min-age": {
       "name": "@offers/dependency-min-age",
       "version": "0.0.0",
@@ -89,8 +103,8 @@
       "name": "@offers/issuer",
       "version": "0.0.0",
       "dependencies": {
+        "@offers/credentials": "workspace:*",
         "@offers/offer": "workspace:*",
-        "@offers/vault": "workspace:*",
         "playwright": "catalog:",
       },
       "devDependencies": {
@@ -214,13 +228,9 @@
         "typescript": "catalog:",
       },
     },
-    "packages/vault": {
-      "name": "@offers/vault",
+    "packages/totp": {
+      "name": "@offers/totp",
       "version": "0.0.0",
-      "dependencies": {
-        "@offers/error-message": "workspace:*",
-        "zod": "catalog:",
-      },
       "devDependencies": {
         "@cprussin/tsconfig": "catalog:",
         "@types/bun": "catalog:",
@@ -268,6 +278,8 @@
 
     "@offers/config": ["@offers/config@workspace:packages/config"],
 
+    "@offers/credentials": ["@offers/credentials@workspace:packages/credentials"],
+
     "@offers/dependency-min-age": ["@offers/dependency-min-age@workspace:packages/dependency-min-age"],
 
     "@offers/error-message": ["@offers/error-message@workspace:packages/error-message"],
@@ -292,7 +304,7 @@
 
     "@offers/one-time-code-imap": ["@offers/one-time-code-imap@workspace:packages/one-time-code-imap"],
 
-    "@offers/vault": ["@offers/vault@workspace:packages/vault"],
+    "@offers/totp": ["@offers/totp@workspace:packages/totp"],
 
     "@pinojs/redact": ["@pinojs/redact@0.4.0", "", {}, "sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg=="],
 

@@ -55,8 +55,13 @@ Assume every run is unattended and every mistake is irreversible.
 
 ## Secrets never leave the process
 
-- Read credentials through the vault port. Never accept a password from a
-  config file, a CLI flag, or a literal.
+- Every secret comes from `@offers/credentials`, and from nowhere else. Never
+  accept a password, TOTP secret, or token from `offers.config.json`, from a
+  CLI flag, from an environment variable, or from a literal. `OFFERS_CONFIG`
+  and `OFFERS_CREDENTIALS` name *files*; they never carry a value.
+- Anything added to the config schema must be safe in `/nix/store`, because
+  that is where the NixOS module puts it. If a new field could hold a secret,
+  it belongs in the credentials schema instead.
 - Never log a password, a session token, a one-time code, or a cookie —
   not at debug level, not "temporarily."
 - Diagnostic artifacts (screenshots, HTML dumps) are captured **only** after

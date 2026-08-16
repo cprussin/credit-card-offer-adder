@@ -20,6 +20,14 @@ self: {
         profileDir = "${stateDir}/profiles";
       }
       // cfg.settings);
+  # Either way systemd stages the document in $CREDENTIALS_DIRECTORY — a
+  # per-unit tmpfs, mode 0400, owned by the service user and torn down when the
+  # run ends — under the name the app looks for, so nothing has to name a path.
+  credentialName = "offers-credentials";
+  credentialOption =
+    if cfg.sealed
+    then {LoadCredentialEncrypted = "${credentialName}:${toString cfg.credentialFile}";}
+    else {LoadCredential = "${credentialName}:${toString cfg.credentialFile}";};
 in {
   options.services.offer-adder = {
     enable = lib.mkEnableOption "the credit card offer adder";
@@ -40,7 +48,7 @@ in {
               id = "connor-amex";
               label = "Connor · Amex";
               issuer = "amex";
-              vaultItem = "American Express";
+              codeSources = ["totp" "prompt"];
               senderHints = ["americanexpress"];
             }
           ];
@@ -48,19 +56,43 @@ in {
       '';
       description = ''
         The contents of offers.config.json. Rendered into the world-readable
-        Nix store, which is safe because the schema only ever takes the *names*
-        of vault items — never a credential. See the `@offers/config` README
-        for every field.
+        Nix store, which is safe because the schema holds no secrets at all —
+        every password, TOTP secret and token lives in `credentialFile`
+        instead. See the `@offers/config` README for every field.
       '';
     };
 
-    environmentFile = lib.mkOption {
+    credentialFile = lib.mkOption {
       type = lib.types.path;
-      example = "/run/agenix/offer-adder-bw-session";
+      example = "/var/lib/secrets/offer-adder/credentials.cred";
       description = ''
-        File holding `BW_SESSION=…` (or `BW_PASSWORD=…`). Must NOT be a store
-        path — point this at an agenix or sops-nix secret, readable by the
-        service user.
+        The credentials document — bank logins, TOTP secrets, mailbox logins,
+        ntfy token. systemd loads it at unit start into a private tmpfs, mode
+        0400, that only this service can read and that is unmounted when the
+        run ends, so it never reaches the process environment and never appears
+        in `systemctl show`.
+
+        Sealed by default; see `sealed` below. Seal it with
+
+          systemd-creds encrypt --with-key=host+tpm2 \
+            --name=offers-credentials credentials.json credentials.cred
+
+        Must NOT be a store path, which is world-readable. See
+        /docs/DEPLOYMENT.md for the full procedure and for the agenix and
+        sops-nix alternatives.
+      '';
+    };
+
+    sealed = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether `credentialFile` is `systemd-creds encrypt` output
+        (`LoadCredentialEncrypted`) rather than the plaintext document
+        (`LoadCredential`). Set this false when another secret manager —
+        agenix, sops-nix — already decrypts the file for you; systemd still
+        gives the tmpfs isolation either way, but the TPM binding is yours to
+        replace.
       '';
     };
 
@@ -87,6 +119,21 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
+    # A store path is world-readable, so a credentials file placed there would
+    # be readable by every user on the machine. Caught here rather than at run
+    # time because by then the secret has already been published.
+    assertions = [
+      {
+        assertion = !(lib.hasPrefix builtins.storeDir (toString cfg.credentialFile));
+        message = ''
+          services.offer-adder.credentialFile points into the Nix store
+          (${toString cfg.credentialFile}), which is world-readable. Seal the
+          credentials with `systemd-creds encrypt` and reference the resulting
+          file by an absolute path outside the store.
+        '';
+      }
+    ];
+
     users.users.${cfg.user} = lib.mkIf (cfg.user == "offer-adder") {
       isSystemUser = true;
       group = "offer-adder";
@@ -105,12 +152,11 @@ in {
         OFFERS_CONFIG = settingsFile;
       };
 
-      serviceConfig = {
+      serviceConfig = credentialOption // {
         Type = "oneshot";
         User = cfg.user;
         StateDirectory = "offer-adder";
         WorkingDirectory = stateDir;
-        EnvironmentFile = cfg.environmentFile;
         # A run is a few minutes. Longer means something is hung on a bank page,
         # and the next firing is a better bet than waiting.
         TimeoutStartSec = "30min";

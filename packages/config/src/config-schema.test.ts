@@ -11,12 +11,10 @@ const amexAccount = {
     host: "imap.example.com",
     port: 993,
     secure: true,
-    vaultItem: "mailbox-connor",
   },
   issuer: "amex",
   label: "Connor · Amex",
   senderHints: ["americanexpress"],
-  vaultItem: "amex-connor",
 };
 
 const config = (accounts: readonly unknown[]) => ({ accounts });
