@@ -1,0 +1,30 @@
+{
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "@offers/error-message": "workspace:*",
+    "@offers/one-time-code": "workspace:*",
+    "imapflow": "catalog:",
+    "mailparser": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/mailparser": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./imap-code-source": "./src/imap-code-source.ts",
+    "./imap-mailbox": "./src/imap-mailbox.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/one-time-code-imap",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

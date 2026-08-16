@@ -1,0 +1,26 @@
+{
+  "dependencies": {
+    "@offers/error-message": "workspace:*",
+    "@offers/issuer": "workspace:*",
+    "@offers/offer": "workspace:*",
+    "playwright": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./amex-adapter": "./src/amex-adapter.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/issuer-amex",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

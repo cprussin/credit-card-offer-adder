@@ -1,0 +1,71 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": [
+    "BW_CLIENTID",
+    "BW_CLIENTSECRET",
+    "BW_PASSWORD",
+    "BW_SESSION",
+    "CI",
+    "CLAUDE_CODE_REMOTE",
+    "FORCE_COLOR",
+    "HOME",
+    "OFFERS_CONFIG",
+    "PLAYWRIGHT_BROWSERS_PATH",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME"
+  ],
+  "tasks": {
+    "//#build": {
+      "dependsOn": ["//#build:install-modules"]
+    },
+    "//#build:install-modules": {
+      "inputs": ["**/package.json", "bunfig.toml", "!**/dist/**"],
+      "outputs": ["bun.lock"]
+    },
+
+    "//#fix": {
+      "with": ["//#fix:lint"]
+    },
+    "//#fix:lint": {
+      "cache": false,
+      "dependsOn": ["//#build"]
+    },
+
+    "//#test": {
+      "with": [
+        "//#test:dependencies",
+        "//#test:dependency-min-age",
+        "//#test:lint"
+      ]
+    },
+    "//#test:dependencies": {
+      "cache": false,
+      "dependsOn": ["//#build"]
+    },
+    "//#test:dependency-min-age": {
+      "cache": false,
+      "dependsOn": ["//#build"]
+    },
+    "//#test:lint": {
+      "dependsOn": ["//#build"]
+    },
+
+    "start:offers": {
+      "cache": false,
+      "dependsOn": ["//#build"],
+      "persistent": true
+    },
+
+    "test": {
+      "with": ["test:types", "test:unit"]
+    },
+    "test:types": {
+      "dependsOn": ["//#build", "^test:types"]
+    },
+    "test:unit": {
+      "dependsOn": ["//#build"]
+    }
+  },
+  "ui": "tui"
+}

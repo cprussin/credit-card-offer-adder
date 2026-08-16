@@ -1,0 +1,38 @@
+{
+  "bin": {
+    "offer-adder": "./src/main.ts"
+  },
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "@offers/browser-session": "workspace:*",
+    "@offers/config": "workspace:*",
+    "@offers/error-message": "workspace:*",
+    "@offers/issuer": "workspace:*",
+    "@offers/issuer-amex": "workspace:*",
+    "@offers/issuer-chase": "workspace:*",
+    "@offers/notify": "workspace:*",
+    "@offers/ntfy": "workspace:*",
+    "@offers/offer": "workspace:*",
+    "@offers/offer-run": "workspace:*",
+    "@offers/one-time-code": "workspace:*",
+    "@offers/one-time-code-imap": "workspace:*",
+    "@offers/vault": "workspace:*"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/offer-adder",
+  "private": true,
+  "scripts": {
+    "start:offers": "bun src/main.ts",
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

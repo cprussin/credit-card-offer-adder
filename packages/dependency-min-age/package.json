@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./catalog": "./src/catalog.ts",
+    "./config": "./src/config.ts",
+    "./find-violations": "./src/find-violations.ts",
+    "./npm-registry": "./src/npm-registry.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/dependency-min-age",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

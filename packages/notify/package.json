@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "@offers/ntfy": "workspace:*",
+    "@offers/offer-run": "workspace:*"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./console-notifier": "./src/console-notifier.ts",
+    "./format-run-report": "./src/format-run-report.ts",
+    "./notification": "./src/notification.ts",
+    "./ntfy-notifier": "./src/ntfy-notifier.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/notify",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

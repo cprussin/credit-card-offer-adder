@@ -1,0 +1,16 @@
+[Unit]
+Description=Add new card offers twice a day
+Documentation=https://github.com/cprussin/credit-card-offer-adder
+
+[Timer]
+# Twice a day. Both issuers drip new offers in throughout the month rather than
+# on a schedule, so more often than daily catches them sooner, and the run is
+# idempotent — a pass with nothing to add costs a couple of minutes and adds
+# nothing. Avoid the top of the hour: a login at 03:00:00 sharp is a bot
+# signature.
+OnCalendar=*-*-* 03:17,15:17:00
+RandomizedDelaySec=45min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

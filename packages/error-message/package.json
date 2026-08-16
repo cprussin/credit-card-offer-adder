@@ -1,0 +1,21 @@
+{
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./error-message": "./src/error-message.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/error-message",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}

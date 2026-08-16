@@ -1,0 +1,73 @@
+{
+  "profileDir": "~/.local/state/offer-adder/profiles",
+  "artifactDir": "~/.local/state/offer-adder/artifacts",
+  "headless": false,
+  "ntfy": {
+    "server": "https://ntfy.example.com",
+    "alertTopic": "offers-alerts",
+    "replyTopic": "offers-codes",
+    "tokenVaultItem": "ntfy access token"
+  },
+  "accounts": [
+    {
+      "id": "connor-amex",
+      "label": "Connor · Amex",
+      "issuer": "amex",
+      "vaultItem": "American Express",
+      "senderHints": ["americanexpress", "american express"],
+      "codeSources": ["imap", "ntfy"],
+      "imap": {
+        "host": "imap.fastmail.com",
+        "port": 993,
+        "secure": true,
+        "folder": "INBOX",
+        "vaultItem": "offers mailbox — connor"
+      }
+    },
+    {
+      "id": "connor-chase",
+      "label": "Connor · Chase",
+      "issuer": "chase",
+      "vaultItem": "Chase",
+      "senderHints": ["chase.com", "chase"],
+      "codeSources": ["totp", "imap", "ntfy"],
+      "imap": {
+        "host": "imap.fastmail.com",
+        "port": 993,
+        "secure": true,
+        "folder": "INBOX",
+        "vaultItem": "offers mailbox — connor"
+      }
+    },
+    {
+      "id": "spouse-amex",
+      "label": "Spouse · Amex",
+      "issuer": "amex",
+      "vaultItem": "American Express (spouse)",
+      "senderHints": ["americanexpress", "american express"],
+      "codeSources": ["imap", "ntfy"],
+      "imap": {
+        "host": "imap.fastmail.com",
+        "port": 993,
+        "secure": true,
+        "folder": "INBOX",
+        "vaultItem": "offers mailbox — spouse"
+      }
+    },
+    {
+      "id": "spouse-chase",
+      "label": "Spouse · Chase",
+      "issuer": "chase",
+      "vaultItem": "Chase (spouse)",
+      "senderHints": ["chase.com", "chase"],
+      "codeSources": ["totp", "imap", "ntfy"],
+      "imap": {
+        "host": "imap.fastmail.com",
+        "port": 993,
+        "secure": true,
+        "folder": "INBOX",
+        "vaultItem": "offers mailbox — spouse"
+      }
+    }
+  ]
+}

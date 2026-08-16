@@ -1,0 +1,31 @@
+{
+  "dependencies": {
+    "@cprussin/option-result": "catalog:",
+    "@offers/config": "workspace:*",
+    "@offers/error-message": "workspace:*",
+    "@offers/offer": "workspace:*"
+  },
+  "devDependencies": {
+    "@cprussin/tsconfig": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    "./account-error": "./src/account-error.ts",
+    "./account-session": "./src/account-session.ts",
+    "./run-account": "./src/run-account.ts",
+    "./run-accounts": "./src/run-accounts.ts",
+    "./run-report": "./src/run-report.ts"
+  },
+  "files": [
+    "src/**/*"
+  ],
+  "name": "@offers/offer-run",
+  "private": true,
+  "scripts": {
+    "test:types": "tsc --noEmit",
+    "test:unit": "bun test"
+  },
+  "type": "module",
+  "version": "0.0.0"
+}
