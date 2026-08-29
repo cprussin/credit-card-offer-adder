@@ -39,18 +39,18 @@ const defaultCodeSources = (hasMailbox: boolean): readonly CodeSourceKind[] =>
     : [CodeSourceKind.Totp, CodeSourceKind.Ntfy];
 
 /**
- * The mailbox a bank's one-time code is delivered to. It belongs to the
- * account rather than the run because two people banking at the same issuer
- * must not read each other's codes — give each account its own address (plus
- * addressing is enough) and the ambiguity never arises.
+ * Where a bank's one-time code is delivered. Only the non-secret half lives
+ * here; the mailbox login is in the credentials document, keyed by account id.
+ *
+ * It belongs to the account rather than the run because two people banking at
+ * the same issuer must not read each other's codes — give each account its own
+ * address (plus addressing is enough) and the ambiguity never arises.
  */
 const imapSchema = z.object({
   folder: z.string().default("INBOX"),
   host: z.string(),
   port: z.number().int().positive().default(993),
   secure: z.boolean().default(true),
-  /** Vault item holding the mailbox's username and password. */
-  vaultItem: z.string(),
 });
 
 export const accountSchema = z
@@ -64,8 +64,6 @@ export const accountSchema = z
     label: z.string().min(1),
     /** Fragments identifying the issuer in a delivered message. */
     senderHints: z.array(z.string().min(1)).min(1),
-    /** Vault item holding the bank login's username and password. */
-    vaultItem: z.string().min(1),
   })
   .transform((account) => ({
     ...account,

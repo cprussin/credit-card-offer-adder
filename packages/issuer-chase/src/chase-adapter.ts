@@ -41,8 +41,8 @@ const CHASE = {
  * Chase Offers.
  *
  * Chase can be enrolled in authenticator-app verification, which is why a Chase
- * account's code ladder should start with `totp`: with a TOTP secret in the
- * vault item, even a challenged login needs nobody. Failing that it behaves
+ * account's code ladder should start with `totp`: with a TOTP secret in its
+ * credentials entry, even a challenged login needs nobody. Failing that it behaves
  * like Amex — ask for email delivery and get the device remembered.
  */
 export const chaseAdapter: IssuerAdapter = {

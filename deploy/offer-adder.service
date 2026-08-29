@@ -8,15 +8,32 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=%h/src/credit-card-offer-adder
 
-# The vault session and nothing else. Provision it once with
+# The credentials document — the four bank logins, their TOTP secrets, the
+# mailbox login and the ntfy token — sealed to this machine. Seal it once with
 #
-#   install -m 600 /dev/null %h/.config/offer-adder/env
-#   printf 'BW_SESSION=%%s\n' "$(bw unlock --raw)" > %h/.config/offer-adder/env
+#   systemd-creds encrypt --user --with-key=host+tpm2 \
+#       --name=offers-credentials \
+#       credentials.json %h/.config/offer-adder/credentials.cred
+#   shred -u credentials.json
 #
-# so no master password ever sits on disk. Vaultwarden sessions do not expire
-# on their own; re-run that after a master password change. Set BW_PASSWORD
-# here instead if you would rather the service be able to unlock by itself.
-EnvironmentFile=%h/.config/offer-adder/env
+# systemd decrypts it at start into $CREDENTIALS_DIRECTORY, a tmpfs private to
+# this unit and readable only by this user, and unmounts it when the run ends.
+# The plaintext therefore never sits on disk and never shows up in
+# `systemctl show`. The app looks there by name, so nothing below has to point
+# at it.
+#
+# Without a TPM, drop --with-key=host+tpm2 down to --with-key=host. To skip
+# sealing entirely, DELETE the LoadCredentialEncrypted line below and add
+#
+#   Environment=OFFERS_CREDENTIALS=%h/.config/offer-adder/offers.credentials.json
+#
+# pointing at a mode-600 file — the app refuses to read one that is group- or
+# world-readable. Leaving both in place does not do what it looks like:
+# CREDENTIALS_DIRECTORY wins and OFFERS_CREDENTIALS is never consulted.
+LoadCredentialEncrypted=offers-credentials:%h/.config/offer-adder/credentials.cred
+
+# Non-secret by construction: account ids, labels, issuers, code-source order,
+# IMAP host and folder. No password, secret or token belongs in this file.
 Environment=OFFERS_CONFIG=%h/.config/offer-adder/offers.config.json
 
 # Xvfb rather than headless Chromium: a headless browser is the easiest thing

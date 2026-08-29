@@ -15,8 +15,14 @@ result
 .profiles/
 .artifacts/
 
-# The local account configuration names real vault items and mailboxes.
+# The local account configuration names real accounts and mailboxes.
 offers.config.json
+
+# The credentials document: four bank logins, their TOTP secrets, a mailbox
+# password. Never committed, sealed or not. The `.example` file is the only
+# one tracked.
+offers.credentials.json
+*.cred
 
 # Generated at build time via IFD (see nix/offer-adder.nix); never committed.
 bun.generated.nix

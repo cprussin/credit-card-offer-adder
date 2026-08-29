@@ -2,8 +2,10 @@
 
 Parse and validate `offers.config.json`.
 
-The config file names vault items, mailboxes, and topics. It never contains a
-secret — every credential is fetched from the vault at run time.
+The config file names accounts, mailboxes, and topics. It never contains a
+secret, which is what makes it safe to render into the Nix store or check into
+a dotfiles repo. Every password, TOTP secret and token lives in the separate
+credentials document — see [`@offers/credentials`](../credentials/README.md).
 
 ## The file
 
@@ -15,28 +17,29 @@ secret — every credential is fetched from the vault at run time.
   "ntfy": {
     "server": "https://ntfy.example.com",
     "alertTopic": "offers-alerts",   // run summaries and requests for a code
-    "replyTopic": "offers-codes",    // where you publish a code back
-    "tokenVaultItem": "ntfy access token"   // optional, for a protected topic
+    "replyTopic": "offers-codes"     // where you publish a code back
   },
   "accounts": [
     {
-      "id": "connor-amex",           // names the browser profile directory
+      "id": "connor-amex",           // keys the credentials AND the profile dir
       "label": "Connor · Amex",      // shown in notifications
       "issuer": "amex",              // "amex" | "chase"
-      "vaultItem": "American Express",
       "senderHints": ["americanexpress"],   // identifies the issuer's messages
       "codeSources": ["imap", "ntfy"],      // optional; see below
       "imap": {
         "host": "imap.fastmail.com",
         "port": 993,                 // default
         "secure": true,              // default
-        "folder": "INBOX",           // default
-        "vaultItem": "offers mailbox — connor"
+        "folder": "INBOX"            // default
       }
     }
   ]
 }
 ```
+
+`id` is the join key. It names the account's browser profile directory *and*
+selects its entry in the credentials document, so changing it silently orphans
+both.
 
 `profileDir` must survive reboots. It holds the cookies and device tokens that
 stop the banks challenging every login, which is the whole basis of running
@@ -52,6 +55,12 @@ work on a server.
 Loudly, before a browser is ever launched: an unknown issuer, an empty ladder,
 a ladder that asks for `imap` with no mailbox configured, duplicate account ids
 (they would share a browser profile), or no accounts at all.
+
+A ladder that asks for something the *credentials* cannot supply — `totp` with
+a missing or malformed `totpSecret` — is not caught here; this package never
+sees a secret. It is caught in `apps/offer-adder`'s `buildCodeSource`, when
+that account's ladder is assembled. That is still before its browser launches,
+but it fails the one account rather than the run.
 
 ## Modules
 

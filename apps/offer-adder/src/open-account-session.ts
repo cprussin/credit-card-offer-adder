@@ -1,19 +1,19 @@
 import { openBrowserSession } from "@offers/browser-session/browser-session";
 import type { Account } from "@offers/config/account";
 import type { Config } from "@offers/config/config-schema";
+import { credentialsFor } from "@offers/credentials/credentials";
 import type { IssuerAdapter } from "@offers/issuer/issuer-adapter";
 import { amexAdapter } from "@offers/issuer-amex/amex-adapter";
 import { chaseAdapter } from "@offers/issuer-chase/chase-adapter";
 import { Issuer } from "@offers/offer/issuer";
 import type { AccountSession } from "@offers/offer-run/account-session";
 import { requestCodeWith } from "@offers/one-time-code/request-code";
-import type { Vault } from "@offers/vault/vault";
+
 import type { BuildCodeSourceDeps } from "./build-code-source";
 import { buildCodeSource } from "./build-code-source";
 
 export type OpenAccountSessionDeps = {
   readonly config: Config;
-  readonly vault: Vault;
   readonly codeSourceDeps: BuildCodeSourceDeps;
 };
 
@@ -28,10 +28,10 @@ export type OpenAccountSessionDeps = {
  */
 export const openAccountSession = async (
   account: Account,
-  { config, vault, codeSourceDeps }: OpenAccountSessionDeps,
+  { config, codeSourceDeps }: OpenAccountSessionDeps,
 ): Promise<AccountSession> => {
   const adapter = adapterFor(account.issuer);
-  const codeSource = await buildCodeSource(account, codeSourceDeps);
+  const codeSource = buildCodeSource(account, codeSourceDeps);
   const browser = await openBrowserSession({
     accountId: account.id,
     artifactDir: config.artifactDir,
@@ -40,7 +40,7 @@ export const openAccountSession = async (
   });
   try {
     await adapter.signIn({
-      credentials: await vault.credentials(account.vaultItem),
+      credentials: credentialsFor(codeSourceDeps.credentials, account.id),
       page: browser.page,
       requestCode: requestCodeWith(codeSource, {
         accountLabel: account.label,

@@ -7,7 +7,7 @@ import type { CodeRequest, CodeSource, CodeUnavailable } from "./code-source";
  * Try each source in turn and take the first code anyone produces.
  *
  * Order is the whole point: put the sources that need no human first (a TOTP
- * secret from the vault, a mailbox we can poll) and the ones that interrupt
+ * secret we hold, a mailbox we can poll) and the ones that interrupt
  * someone last, so an unattended run only reaches a person when the automatic
  * paths are genuinely exhausted. When nobody produces a code the failure names
  * every source and why it came up empty — that message is the only clue we get

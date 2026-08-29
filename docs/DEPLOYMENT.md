@@ -8,7 +8,19 @@ A oneshot process and a timer. There is no daemon, no port, no database. One
 invocation of `apps/offer-adder/src/main.ts` walks every configured account and
 exits.
 
-Two directories are the whole of its state:
+Two files go in, and two directories are the whole of its state.
+
+| Input | Secret? | Where it can live |
+|---|---|---|
+| `offers.config.json` | No — account ids, labels, issuers, ladder order, IMAP host and folder. | Anywhere, including `/nix/store`. |
+| the credentials document | Yes — bank logins, TOTP secrets, mailbox logins, ntfy token. | Sealed at rest; unsealed into a per-unit tmpfs. Never the store. |
+
+The split is deliberate and is the main security property of the deployment:
+everything that can be declarative is, and the one thing that cannot be is
+small, single-purpose, and separately protected. See
+[secrets](#secrets), below.
+
+The state:
 
 | Directory | Contents | If you lose it |
 |---|---|---|
@@ -22,13 +34,16 @@ trust with a logged-in laptop, and do not sync it anywhere.
 
 These are the same on every platform, and none of them can be skipped.
 
-1. **Vaultwarden reachable and `bw` logged in.** `bw config server …` then
-   `bw login`. See [README §2](../README.md#2-point-bw-at-your-vaultwarden-and-log-in-once).
+1. **A credentials document**, from `offers.credentials.example.json`: a
+   username and password per account id, plus the TOTP secret and mailbox
+   login for the accounts that need them. See
+   [README §2](../README.md#2-write-the-credentials-file) and
+   [`packages/credentials/README.md`](../packages/credentials/README.md).
 2. **Codes readable by a machine.** Per-account mailbox address, or an
    authenticator app for Chase. This is the step that decides whether the
    deploy is actually unattended — [README §3](../README.md#3-make-the-codes-readable-by-a-machine).
-3. **A config file**, from `offers.config.example.json`. It names vault items
-   and never holds a secret. Field reference:
+3. **A config file**, from `offers.config.example.json`. It holds no secrets.
+   Field reference:
    [`packages/config/README.md`](../packages/config/README.md).
 4. **One supervised run on a machine with a display.** The banks challenge you,
    the devices get remembered, and you find out whether either site has moved a
@@ -46,11 +61,12 @@ fingerprint more than cookies, so expect one more challenge after a move.
 |---|---|
 | `bun` ≥ 1.3.11 | The runtime. There is no build step; it runs the TypeScript directly. |
 | Chromium | Via Playwright's browser bundle, or a system Chromium Playwright can find. |
-| `bitwarden-cli` | `bw` must be on the service's `PATH`. |
 | `xvfb` | Only if the host has no display. Prefer this over headless mode — see below. |
+| systemd ≥ 250 | For `LoadCredentialEncrypted`. Optional but strongly preferred — see [secrets](#secrets). The `--user` sealing in the user-unit recipe below additionally needs ≥ 256. |
+| A TPM 2.0 | Optional. Seals the credentials to this machine, so a stolen disk is not a stolen bank login. |
 
-Outbound HTTPS to `americanexpress.com`, `chase.com`, your Vaultwarden, your
-IMAP host, and your ntfy server. Nothing inbound.
+Outbound HTTPS to `americanexpress.com`, `chase.com`, your IMAP host, and your
+ntfy server. Nothing inbound.
 
 ### Do not run headless
 
@@ -70,8 +86,12 @@ mkdir -p ~/.config/offer-adder ~/.config/systemd/user
 cp offers.config.example.json ~/.config/offer-adder/offers.config.json
 $EDITOR ~/.config/offer-adder/offers.config.json
 
-install -m 600 /dev/null ~/.config/offer-adder/env
-printf 'BW_SESSION=%s\n' "$(bw unlock --raw)" > ~/.config/offer-adder/env
+install -m 600 /dev/null ~/.config/offer-adder/offers.credentials.json
+$EDITOR ~/.config/offer-adder/offers.credentials.json
+systemd-creds encrypt --user --with-key=host+tpm2 --name=offers-credentials \
+  ~/.config/offer-adder/offers.credentials.json \
+  ~/.config/offer-adder/credentials.cred
+shred -u ~/.config/offer-adder/offers.credentials.json
 
 cp deploy/offer-adder.{service,timer} ~/.config/systemd/user/
 systemctl --user daemon-reload
@@ -95,10 +115,68 @@ systemctl --user start offer-adder.service    # run it now
 journalctl --user -u offer-adder.service -n 50
 ```
 
+## Secrets
+
+The service needs four bank logins, their TOTP secrets, one mailbox login, and
+optionally an ntfy token. That is the entire secret surface, and it is
+deliberately not a password-manager session: a session or master password would
+give a compromise of this host everything in the vault, while this gives it
+only what the service was always going to use.
+
+The threat this actually defends against is a stolen or backed-up disk, plus
+any other local user on the box. It does not defend against root on a running
+machine — nothing that has to hand a plaintext password to a browser can.
+
+### The mechanism: systemd credentials
+
+`LoadCredentialEncrypted=offers-credentials:/path/to/credentials.cred` is what
+both the shipped unit and the NixOS module use.
+
+```sh
+systemd-creds encrypt --with-key=host+tpm2 --name=offers-credentials \
+  credentials.json /var/lib/secrets/offer-adder/credentials.cred
+shred -u credentials.json
+```
+
+What that buys, in order of importance:
+
+- **Sealed to the machine.** `host+tpm2` binds the ciphertext to this host's
+  TPM. The file is useless on any other machine, so a disk image or a backup
+  is not a set of bank logins.
+- **Never on disk in the clear.** systemd decrypts at unit start into
+  `$CREDENTIALS_DIRECTORY`, a tmpfs mounted for this unit alone, mode 0400,
+  owned by the service user, unmounted when the run exits.
+- **Not in the process environment.** Unlike `EnvironmentFile`, nothing lands
+  in `/proc/<pid>/environ`, in `systemctl show`, or in a crash dump. The app
+  reads a file and holds the values in memory.
+- **No moving parts.** No agent, no unseal step, no daemon to keep running,
+  nothing to renew. `--name` binds the ciphertext to the credential *name*, so
+  a blob cannot be replayed under a different name — note that is the name, not
+  the unit: any unit loading a credential called `offers-credentials` would be
+  accepted.
+
+`--with-key=host` (no TPM) still keeps the plaintext off the disk and out of
+the environment, but the key is a root-readable file rather than sealed
+hardware. Drop `+host` from `host+tpm2` only if you need the credential to
+survive a reinstall.
+
+### Alternatives, and why not
+
+| Option | Verdict |
+|---|---|
+| **agenix / sops-nix** | A fine substitute — decrypts to a path, which you point `credentialFile` at (with `sealed = false`). Use it if you already run one, and if your fleet needs the secret to be reproducible from a git-committed ciphertext. It writes plaintext to a persistent `/run` path rather than a per-unit tmpfs, adds a host key to manage, and its mode is yours to get right: the app only ever sees systemd's staged copy, so nothing checks the source file's permissions for you. |
+| **Vault / OpenBao, Infisical, ESO** | These solve rotation, audit and multi-tenant access across a cluster. Here there is one host, four credentials, and nothing to rotate on a schedule — they would add a server whose own availability becomes a reason the run fails. |
+| **Kubernetes `Secret`** | Base64 in etcd, mounted into a pod. Weaker than the above unless you also run encryption-at-rest and a CSI driver, and this workload is a twice-daily oneshot with a persistent browser profile — a poor fit for a pod either way. |
+| **A password manager (the previous design)** | Rejected: it made the service's blast radius the whole vault, and it needed either a long-lived session that breaks on a master-password change or the master password itself on disk. |
+
+The through-line: the ConfigMap/Secret split is the part of the Kubernetes
+model worth keeping. The secret *store* is not, at this size.
+
 ## Deploying on NixOS
 
-This is the better target: the runtime, Chromium, and `bw` all get pinned
-together, and the timer is declarative.
+This is the better target: the runtime and Chromium get pinned together, the
+timer is declarative, and the non-secret half of the configuration goes in the
+store where it belongs.
 
 ### The flake
 
@@ -110,7 +188,7 @@ to vendor.
 | `packages.<system>.default` | The wrapped app. `nix run github:cprussin/credit-card-offer-adder` runs one pass. |
 | `nixosModules.default` | `services.offer-adder`, defined in [`nix/module.nix`](../nix/module.nix). |
 | `overlays.default` | Puts `offer-adder` into a package set. |
-| `devShells.default` | bun, biome, bun2nix, `bw`, and a Playwright-matched Chromium. |
+| `devShells.default` | bun, biome, bun2nix, and a Playwright-matched Chromium. |
 | `checks.default` | The package, whose check phase runs `bun test`. |
 
 The package derivation is [`nix/offer-adder.nix`](../nix/offer-adder.nix). It
@@ -120,7 +198,7 @@ is fetched as its own content-addressed derivation with a hash read from
 `bun.generated.nix` is produced at build time rather than committed. Unlike
 `argo-browser` there is no build step — bun runs the TypeScript directly — so
 the derivation only resolves dependencies offline, runs the unit tests, and
-wraps an entry point with `bw`, `xvfb-run`, and a Chromium on its path.
+wraps an entry point with `xvfb-run` and a Chromium on its path.
 
 Because it uses IFD, a consumer evaluating this flake needs
 `allow-import-from-derivation` (the default) and will build `bun2nix` once.
@@ -149,8 +227,9 @@ Executable doesn't exist at …/playwright-browsers/chromium-1234/chrome-linux64
 | Option | Default | Notes |
 |---|---|---|
 | `enable` | `false` | |
-| `settings` | — | The `offers.config.json` contents, rendered into the store. Safe there: the schema only ever takes vault item *names*. `profileDir` and `artifactDir` default under `/var/lib/offer-adder`. |
-| `environmentFile` | — | Holds `BW_SESSION=…`. Must **not** be a store path. |
+| `settings` | — | The `offers.config.json` contents, rendered into the store. Safe there: the schema holds no secrets at all. `profileDir` and `artifactDir` default under `/var/lib/offer-adder`. |
+| `credentialFile` | — | The credentials document. Must **not** be a store path; the module asserts it. |
+| `sealed` | `true` | Whether `credentialFile` is `systemd-creds` output. `false` when agenix or sops-nix decrypts it for you. |
 | `package` | this flake's | |
 | `user` | `offer-adder` | Its state directory holds the browser profiles. |
 | `onCalendar` | `*-*-* 03:17,15:17:00` | Plus a 45-minute random delay. |
@@ -169,7 +248,7 @@ and a `Persistent` timer.
 
   services.offer-adder = {
     enable = true;
-    environmentFile = config.age.secrets.offer-adder-bw-session.path;
+    credentialFile = "/var/lib/secrets/offer-adder/credentials.cred";
     settings = {
       # profileDir and artifactDir default under /var/lib/offer-adder.
       headless = false;
@@ -177,20 +256,15 @@ and a `Persistent` timer.
         server = "https://ntfy.example.com";
         alertTopic = "offers-alerts";
         replyTopic = "offers-codes";
-        tokenVaultItem = "ntfy access token";
       };
       accounts = [
         {
           id = "connor-amex";
           label = "Connor · Amex";
           issuer = "amex";
-          vaultItem = "American Express";
           senderHints = ["americanexpress" "american express"];
           codeSources = ["imap" "ntfy"];
-          imap = {
-            host = "imap.fastmail.com";
-            vaultItem = "offers mailbox — connor";
-          };
+          imap.host = "imap.fastmail.com";
         }
         # …the other three
       ];
@@ -199,49 +273,73 @@ and a `Persistent` timer.
 }
 ```
 
-`settings` becomes a store path, so keep it free of secrets — which the schema
-already enforces by only ever taking vault item *names*.
+`settings` becomes a store path, which is world-readable — and is fine, because
+the schema has no field that can hold a secret. Everything that can is in
+`credentialFile`.
 
 ### Secrets on NixOS
 
-`BW_SESSION` must not go through `settings`, `environment`, or any other
-route that lands in `/nix/store` — the store is world-readable. Use
+Seal the credentials on the host itself, since `tpm2` binds to that host's TPM:
+
+```sh
+sudo install -d -m 700 /var/lib/secrets/offer-adder
+sudo systemd-creds encrypt --with-key=host+tpm2 --name=offers-credentials \
+  credentials.json /var/lib/secrets/offer-adder/credentials.cred
+shred -u credentials.json
+```
+
+The result is not a store path, so it survives `nixos-rebuild` untouched and
+the module's assertion passes. The module hands it to systemd with
+`LoadCredentialEncrypted`; nothing else in the unit references it.
+
+If you would rather the ciphertext be reproducible from git — a fleet, or a
+host you rebuild from scratch — use
 [agenix](https://github.com/ryantm/agenix) or
-[sops-nix](https://github.com/Mic92/sops-nix) and point `environmentFile` at
-the decrypted path:
+[sops-nix](https://github.com/Mic92/sops-nix) and point `credentialFile` at the
+decrypted path instead:
 
 ```nix
-age.secrets.offer-adder-bw-session = {
-  file = ./secrets/offer-adder-bw-session.age;
+age.secrets.offer-adder-credentials = {
+  file = ./secrets/offer-adder-credentials.age;
   owner = "offer-adder";
+  mode = "0400";
+};
+
+services.offer-adder = {
+  credentialFile = config.age.secrets.offer-adder-credentials.path;
+  sealed = false;   # agenix already decrypted it; use LoadCredential
 };
 ```
 
-The file's contents are one line:
-
-```
-BW_SESSION=<output of bw unlock --raw>
-```
-
-Sessions do not expire on their own, but a Vaultwarden master-password change
-invalidates them and every run will start failing. Re-encrypt a fresh one when
-that happens. Putting `BW_PASSWORD` there instead lets the service unlock
-itself and removes that chore, at the cost of a master password on the host.
+`sealed = false` is required: `LoadCredentialEncrypted` only accepts
+`systemd-creds` output, and agenix hands you the plaintext document. systemd
+still stages it in the same per-unit tmpfs, so it stays out of the environment
+either way — what you give up is the TPM binding, and what you gain is a secret
+recoverable without the original machine. Pick based on whether losing the host
+should mean re-entering four bank passwords.
 
 ### Running the first supervised run under Nix
 
 The service user's profile directory is what needs to get trusted, so do the
 first run as that user with a display attached:
 
+Do this before sealing, while the plaintext document still exists, and give it
+to the service user — `readSecretFile` checks the mode, so a root-owned 0600
+file is one `offer-adder` cannot read:
+
 ```sh
-sudo -u offer-adder \
+sudo chown offer-adder /path/to/offers.credentials.json
+sudo chmod 600 /path/to/offers.credentials.json
+sudo -u offer-adder env \
   OFFERS_CONFIG=/path/to/offers.config.json \
-  BW_SESSION="$(bw unlock --raw)" \
+  OFFERS_CREDENTIALS=/path/to/offers.credentials.json \
   nix run github:cprussin/credit-card-offer-adder
 ```
 
-over an X-forwarded SSH session (`ssh -X`), so you can see and answer the
-challenges. After that the timer's Xvfb runs reuse the same trusted profile.
+(`env` rather than bare `VAR=value`, which `sudo` drops under the default
+`env_reset`.) Run it over an X-forwarded SSH session (`ssh -X`) so you can see
+and answer the challenges. After that the timer's Xvfb runs reuse the same
+trusted profile, and you can seal the document and `shred` the plaintext.
 
 ### Chromium sandboxing
 

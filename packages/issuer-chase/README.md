@@ -21,7 +21,8 @@ new offers.
 ## Two-factor
 
 Chase can be enrolled in authenticator-app verification, which is why a Chase
-account's ladder should start with `totp` — with the secret on the vault item,
+account's ladder should start with `totp` — with the secret in the credentials
+document,
 even a challenged login needs nobody. Failing that it behaves like Amex: ask
 for email delivery, and tick "remember this device" before submitting the code,
 which is what keeps the *next* run unattended.
